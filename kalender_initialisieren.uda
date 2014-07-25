@@ -1,0 +1,138 @@
+# Copyright (C) 2014 BitCtrl Systems GmbH
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+
+# Skript        : Kalender
+# Erstellt durch: CH
+# Am            : 23.07.2014 16:17:17
+#
+
+
+mit fehlerausgabe systemkalenderEintragAnlegen("neujahr","Neujahr","Neujahr:=01.01.*,*")
+mit fehlerausgabe systemkalenderEintragAnlegen("tagDerArbeit","Tag der Arbeit","Tag der Arbeit:=01.05.*,*")
+mit fehlerausgabe systemkalenderEintragAnlegen("tagDerDeutschenEinheit","Tag der Deutschen Einheit","Tag der Deutschen Einheit:=03.10.*,*")
+mit fehlerausgabe systemkalenderEintragAnlegen("ersterWeihnachtstag","1. Weihnachtstag","1. Weihnachtstag:=25.12.*,*")
+mit fehlerausgabe systemkalenderEintragAnlegen("zweiterWeihnachtstag","2. Weihnachtstag","2. Weihnachtstag:=26.12.*,*")
+mit fehlerausgabe systemkalenderEintragAnlegen("karfreitag","Karfreitag","Karfreitag:=Ostersonntag-2 Tage")
+mit fehlerausgabe systemkalenderEintragAnlegen("ostermontag","Ostermontag","Ostermontag:=Ostersonntag+1 Tage")
+mit fehlerausgabe systemkalenderEintragAnlegen("christiHimmelfahrt","Christi Himmelfahrt","Christi Himmelfahrt:=Ostersonntag+39 Tage")
+mit fehlerausgabe systemkalenderEintragAnlegen("pfingstMontag","Pfingstmontag","Pfingstmontag:=Ostersonntag+50 Tage")
+mit fehlerausgabe ereigniskalenderTypEintragAnlegen("montag", "Montag", 50)
+mit fehlerausgabe ereigniskalenderTypEintragAnlegen("dienstag", "Dienstag", 50)
+mit fehlerausgabe ereigniskalenderTypEintragAnlegen("mittwoch", "Mittwoch", 50)
+mit fehlerausgabe ereigniskalenderTypEintragAnlegen("donnerstag", "Donnerstag",50)
+mit fehlerausgabe ereigniskalenderTypEintragAnlegen("freitag", "Freitag", 50)
+mit fehlerausgabe ereigniskalenderTypEintragAnlegen("samstag", "Samstag",50)
+mit fehlerausgabe ereigniskalenderTypEintragAnlegen("sonntag", "Sonntag",50)
+mit fehlerausgabe ereigniskalenderTypEintragAnlegen("ostersonntag", "Ostersonntag",100)
+
+#
+#Anlegen eines neues Systemkalendereintrages inkl. gleichnamigem Ereignistyp und Ereigniskalendereintrag
+#
+funktion systemkalenderEintragAnlegen(eintragPid, eintragName, eintragDefinition)
+	ausgabe "Erzeuge neuen Systemkalendereintrag " & eintragName
+	mit fehlerausgabe konfiguration.neuesObjekt("typ.systemKalenderEintrag","ske." & eintragPid,eintragName)
+	attributgruppe = konfiguration.attributgruppe("atg.systemKalenderEintrag")
+	aspekt = konfiguration.aspekt("asp.parameterVorgabe")
+	neuerEintrag = konfiguration.objekt("ske." & eintragPid)
+	datensatz = attributgruppe.datensatz()
+	datensatz.Definition = eintragDefinition
+	mit fehlerausgabe  neuerEintrag.datenSchreiben(aktuell, attributgruppe, aspekt, datensatz)
+
+	aoe = konfiguration.objekt("kv.aoe.ni.vrz")
+	iteration über eineMenge in aoe.mengen
+		wenn eineMenge.name = "SystemKalenderEinträge" dann
+			mit fehlerausgabe eineMenge.einfügen(neuerEintrag)
+		ende wenn  
+	ende iteration
+	#Pro Systemkalendereintrag legen wir einen EreigniskalenderTyp Eintrag an.
+	ohne fehlerprüfung ereigniskalenderTypEintragAnlegen(eintragPid,eintragName, 100)
+ende funktion
+
+
+#
+# Anlegen eines EreigniskalenderTyp Eintrages mit entsprechender Priotität. 
+#
+funktion ereigniskalenderTypEintragAnlegen(eintragPid,eintragName, priorität)
+
+    systemkalenderEintragReferenz = konfiguration("ske." & eintraPid) 
+
+	atgTypKonfiguration = konfiguration.attributgruppe("atg.ereignisTypEigenschaften")
+	aspEigenschaften = konfiguration.aspekt("asp.eigenschaften")
+	datensatzTypKonfiguration = atgTypKonfiguration.datensatz()
+	
+	datensatzTypKonfiguration.ZusätzlicheAttribute[1].Attributname = ""
+	datensatzTypKonfiguration.ZusätzlicheAttribute[1].Attributwert = ""
+	konfigDaten = konfiguration.datenUndAttributgruppenVerwendungsInformation(atgTypKonfiguration,aspEigenschaften,datensatzTypKonfiguration)
+
+	mit fehlerausgabe konfiguration.neuesObjekt("typ.ereignisTyp","ekt." & eintragPid,eintragName, konfigDaten)
+	atgTypParameter = konfiguration.attributgruppe("atg.ereignisTypParameter")
+	aspekt = konfiguration.aspekt("asp.parameterVorgabe")
+	neuerEreignisTyp = konfiguration.objekt("ekt." & eintragPid)
+	datensatz = atgTypParameter.datensatz()
+	datensatz.EreignisTypPriorität = priorität
+
+	mit fehlerausgabe  neuerEreignisTyp.datenSchreiben(aktuell, atgTypParameter, aspekt, datensatz)
+	
+	aoe = konfiguration.objekt("kv.aoe.ni.vrz")
+	iteration über eineMenge in aoe.mengen
+		wenn eineMenge.name = "EreignisTypen" dann
+			mit fehlerausgabe eineMenge.einfügen(neuerEreignisTyp)
+		ende wenn  
+	ende iteration
+	ohne fehlerprüfung ereigniskalenderEintragAnlegen(eintragPid, eintragName)
+ende funktion
+
+#
+# Anlegen eines Ereigniskalender Eintrages.
+#
+funktion ereigniskalenderEintragAnlegen(eintragPid, eintragName)
+    systemkalenderEintragReferenz = konfiguration.objekt("ske." & eintragPid) 
+    ereignisTypReferenz = konfiguration.objekt("ekt." & eintragPid)
+
+	atgEreignisEigenschaften = konfiguration.attributgruppe("atg.ereignisEigenschaften")
+	aspEigenschaften = konfiguration.aspekt("asp.eigenschaften")
+	datensatzEreignisEigenschaften = atgEreignisEigenschaften.datensatz()
+	datensatzEreignisEigenschaften.Ereignisbeschreibung = "Es ist " & eintragName & " bei BitCtrl"
+	datensatzEreignisEigenschaften.EreignisTypReferenz = ereignisTypReferenz
+	datensatzEreignisEigenschaften.ZusätzlicheAttribute[1].Attributname = ""
+	datensatzEreignisEigenschaften.ZusätzlicheAttribute[1].Attributwert = ""
+	
+	konfigDaten = konfiguration.datenUndAttributgruppenVerwendungsInformation(atgEreignisEigenschaften,aspEigenschaften,datensatzEreignisEigenschaften)
+	
+	mit fehlerausgabe konfiguration.neuesObjekt("typ.ereignis","eke." & eintragPid, eintragName, konfigDaten)
+	atgEreignisParameter = konfiguration.attributgruppe("atg.ereignisParameter")
+	aspekt = konfiguration.aspekt("asp.parameterVorgabe")
+	neuesEreignis = konfiguration.objekt("eke." & eintragPid)
+	datensatz = atgEreignisParameter.datensatz()
+	datensatz.BeginnZeitlicheGültigkeit = zeitstempel("01.01.1972 00:00:00,000")
+	datensatz.EndeZeitlicheGültigkeit = zeitstempel("01.01.1972 00:00:00,000")
+	datensatz.SystemKalenderEintragReferenz = systemkalenderEintragReferenz
+	datensatz.VerkehrlicheGültigkeit[1].ZeitDauerAnfangIntervall = 0 Sekunden
+	#datensatz.VerkehrlicheGültigkeit[1].ZeitBezugAnfangIntervall = 1
+	datensatz.VerkehrlicheGültigkeit[1].ZeitDauerEndeIntervall = 0 Sekunden
+	#datensatz.VerkehrlicheGültigkeit[1].ZeitBezugEndeIntervall = 2
+	datensatz.Quelle = ""
+	#datensatz.Urlasser.Veranlasser = "Mr.X"
+	mit fehlerausgabe  neuesEreignis.datenSchreiben(aktuell, atgEreignisParameter, aspekt, datensatz)
+	
+	aoe = konfiguration.objekt("kv.aoe.ni.vrz")
+	iteration über eineMenge in aoe.mengen
+		wenn eineMenge.name = "Ereignisse" dann
+			mit fehlerausgabe eineMenge.einfügen(neuesEreignis)
+		ende wenn  
+	ende iteration
+ende funktion
+
